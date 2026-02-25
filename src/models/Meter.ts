@@ -1,11 +1,17 @@
 import mongoose, { Schema, model, models } from 'mongoose';
 
 const MeterSchema = new Schema({
+  // El owner vincula este medidor a un Usuario específico
+  owner: { 
+    type: Schema.Types.ObjectId, 
+    ref: 'User', 
+    required: true 
+  },
   clientId: { 
     type: String, 
     required: true, 
     unique: true, 
-    index: true // Para búsquedas instantáneas por DNI/Nro Cliente
+    index: true // El DNI o ID de cliente para búsquedas rápidas
   },
   serialNumber: { 
     type: String, 

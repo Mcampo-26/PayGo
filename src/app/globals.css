@@ -1,13 +1,20 @@
 @import "tailwindcss";
 
 @theme {
-  /* Definimos los colores oficiales de Pay Go */
-  --color-paygo-qr: #22c55e;      /* Verde */
-  --color-paygo-card: #3b82f6;    /* Azul */
-  --color-paygo-trans: #f97316;   /* Naranja */
-  --color-paygo-deb: #a855f7;     /* Violeta */
-  --color-paygo-dark: #0f172a;    /* Oscuro */
+  /* Le decimos a Tailwind que use las variables de tu :root */
+  --color-paygo-qr: var(--color-paygo-qr);
+  --color-paygo-card: var(--color-paygo-card);
+  --color-paygo-trans: var(--color-paygo-trans);
+  --color-paygo-deb: var(--color-paygo-deb);
+  --color-paygo-dark: var(--color-paygo-dark);
   
-  /* Ajustamos los radios para que sean más modernos */
   --radius-paygo: 2.5rem;
+}
+
+:root {
+  --color-paygo-qr: #22c55e;
+  --color-paygo-card: #3b82f6;
+  --color-paygo-trans: #f97316;
+  --color-paygo-deb: #a855f7;
+  --color-paygo-dark: #0f172a;
 }
