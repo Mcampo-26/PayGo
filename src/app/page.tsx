@@ -3,11 +3,18 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { BalanceWidget } from '@/components/BalanceWidget';
 import { Footer } from '@/components/Footer';
+import { RechargeSelector } from '@/components/payments/RechargeSelector';
+import { QrModal } from '@/components/payments/QrModal';
+import { usePaymentStore } from '@/store/usePaymentStore';
 
 export default function HomePage() {
   const [balance, setBalance] = useState(1500);
   const [user, setUser] = useState('');
   const router = useRouter();
+  
+  // Extraemos la acción para abrir el selector desde nuestro Store
+  const { openSelector } = usePaymentStore();
+
   const status = balance > 0 ? 'CONNECTED' : 'DISCONNECTED';
 
   // Al cargar, leemos el ID del usuario de la cookie
@@ -72,12 +79,19 @@ export default function HomePage() {
           <div className="lg:col-span-7 bg-white border-4 border-slate-900 rounded-[2.5rem] p-8 shadow-[10px_10px_0px_rgba(0,0,0,0.05)]">
             <h2 className="text-xl font-black mb-8 border-b-4 border-slate-100 pb-4 uppercase">Cargar Energía</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <button className="flex flex-col p-8 rounded-3xl border-4 border-slate-100 hover:border-paygo-qr bg-slate-50 hover:bg-white transition-all group shadow-sm hover:shadow-xl">
+              
+              {/* Botón Carga QR - Conectado al Store */}
+              <button 
+                onClick={openSelector}
+                className="flex flex-col p-8 rounded-3xl border-4 border-slate-100 hover:border-paygo-qr bg-slate-50 hover:bg-white transition-all group shadow-sm hover:shadow-xl text-left"
+              >
                 <span className="text-5xl mb-4 group-hover:scale-110 transition-transform">🤳</span>
                 <span className="text-2xl font-black text-slate-900">Carga QR</span>
                 <span className="mt-2 font-bold text-paygo-qr text-sm">Mercado Pago / Otros</span>
               </button>
-              <button className="flex flex-col p-8 rounded-3xl border-4 border-slate-100 hover:border-paygo-card bg-slate-50 hover:bg-white transition-all group shadow-sm hover:shadow-xl">
+
+              {/* Botón Tarjeta (Próximamente) */}
+              <button className="flex flex-col p-8 rounded-3xl border-4 border-slate-100 hover:border-paygo-card bg-slate-50 hover:bg-white transition-all group shadow-sm hover:shadow-xl text-left">
                 <span className="text-5xl mb-4 group-hover:scale-110 transition-transform">💳</span>
                 <span className="text-2xl font-black text-slate-900">Tarjeta</span>
                 <span className="mt-2 font-bold text-paygo-card text-sm">Crédito o Débito</span>
@@ -86,6 +100,10 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      {/* Componentes de Pago (Modales) */}
+      <RechargeSelector />
+      <QrModal />
 
       <Footer />
     </main>
