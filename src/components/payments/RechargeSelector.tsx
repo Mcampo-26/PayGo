@@ -1,13 +1,25 @@
-// src/components/payment/RechargeSelector.jsx
+'use client';
+
 import { usePaymentStore } from '@/store/usePaymentStore';
 
+// 1. Corregimos la interface para usar 'dni' como identificador
+interface UserProps {
+  dni: string; 
+  balance: number;
+}
+
+interface RechargeSelectorProps {
+  user: UserProps;
+}
+
 const OPTIONS = [
-  { value: 10, label: 'Carga Básica', kwh: '12' },
-  { value: 5000, label: 'Recomendado', kwh: '35', popular: true },
-  { value: 10000, label: 'Carga Familiar', kwh: '75' },
+  { value: 10, label: 'Carga Básica', kwh: '0.05' },
+  { value: 5000, label: 'Recomendado', kwh: '25', popular: true },
+  { value: 10000, label: 'Carga Familiar', kwh: '50' },
 ];
 
-export const RechargeSelector = () => {
+export const RechargeSelector = ({ user }: RechargeSelectorProps) => {
+  // Extraemos lo necesario del Store
   const { 
     isSelectorOpen, 
     closeAll, 
@@ -17,24 +29,44 @@ export const RechargeSelector = () => {
     isGenerating 
   } = usePaymentStore();
 
-  // Si el store dice que no está abierto, no renderizamos nada
+  // Si el selector no debe estar abierto, no renderizamos nada
   if (!isSelectorOpen) return null;
+
+  // Manejo del click para generar el QR
+  const handleGenerateClick = async () => {
+    // 2. Validamos contra el campo dni
+    if (!user?.dni) {
+      alert("Error: No se encontró el DNI del usuario.");
+      return;
+    }
+
+    if (!selectedAmount) {
+      alert("Por favor, selecciona un monto primero.");
+      return;
+    }
+
+    // 3. Ejecutamos la lógica del store enviando el DNI
+    try {
+      await generateQr(user.dni); 
+    } catch (error) {
+      console.error("Error al generar QR:", error);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 animate-in fade-in duration-300">
-      {/* Fondo desenfocado */}
+      {/* Fondo oscuro con desenfoque */}
       <div 
         className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" 
         onClick={closeAll} 
       />
 
-      {/* Contenedor del Selector */}
       <div className="relative bg-[#F8FAFC] rounded-[2.5rem] p-8 md:p-10 shadow-2xl max-w-lg w-full border border-white">
         
-        {/* Botón cerrar sutil */}
+        {/* Botón Cerrar */}
         <button 
           onClick={closeAll}
-          className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 transition-colors"
+          className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 transition-colors p-2"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -49,10 +81,12 @@ export const RechargeSelector = () => {
           <p className="text-slate-500 mt-2 text-sm">Selecciona el monto que deseas acreditar</p>
         </div>
 
+        {/* Opciones de Carga */}
         <div className="grid gap-4">
           {OPTIONS.map((opt) => (
             <button
               key={opt.value}
+              type="button"
               onClick={() => setAmount(opt.value)}
               className={`relative flex items-center justify-between p-6 rounded-3xl border-2 transition-all duration-300
                 ${selectedAmount === opt.value 
@@ -87,23 +121,19 @@ export const RechargeSelector = () => {
           ))}
         </div>
 
+        {/* Botón de Acción */}
         <button
-          onClick={generateQr}
+          onClick={handleGenerateClick}
           disabled={!selectedAmount || isGenerating}
           className="w-full mt-10 py-5 bg-slate-900 text-white font-bold rounded-[1.5rem] hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
         >
           {isGenerating ? (
             <>
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              <span>Generando orden...</span>
+              <span className="animate-spin text-xl">🌀</span>
+              Generando...
             </>
           ) : (
-            <>
-              <span>Confirmar y pagar</span>
-              <svg className="w-5 h-5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-              </svg>
-            </>
+            "Generar QR de Pago"
           )}
         </button>
       </div>

@@ -5,7 +5,7 @@ const UserSchema = new Schema({
     type: String, 
     required: true, 
     unique: true, 
-    index: true // Búsqueda ultra rápida para el Login
+    index: true 
   },
   name: { 
     type: String, 
@@ -18,7 +18,11 @@ const UserSchema = new Schema({
   phone: { 
     type: String 
   },
-  // Relación: Un usuario puede tener una lista de medidores
+  // CAMBIO CLAVE: Agregamos el balance para poder sumar los kWh
+  balance: {
+    type: Number,
+    default: 0
+  },
   meters: [{ 
     type: Schema.Types.ObjectId, 
     ref: 'Meter' 
