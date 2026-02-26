@@ -28,7 +28,7 @@ export async function POST(req: Request) {
       title: "Recarga de Energía Pay Go",
       description: `Carga de crédito para usuario: ${userId}`,
       // IMPORTANTE: Esta es la URL que Mercado Pago llamará cuando el usuario pague
-      notification_url: `${process.env.NEXT_PUBLIC_BASE_URL}/api/payments/mercadopago/webhook`,
+      notification_url: process.env.NEXT_PUBLIC_BASE_URL,
       total_amount: amount,
       items: [
         {
