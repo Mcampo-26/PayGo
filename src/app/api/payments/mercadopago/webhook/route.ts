@@ -11,46 +11,45 @@ const pusher = new Pusher({
 });
 
 export async function POST(req: Request) {
+  console.log("--- 📥 NUEVA NOTIFICACIÓN DE MP RECIBIDA ---");
+  
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('data.id') || searchParams.get('id');
     const type = searchParams.get('type');
 
-    // Solo procesamos si es una notificación de pago
+    console.log(`🔍 Metadata -> ID: ${id}, Type: ${type}`);
+
     if (type === 'payment' && id) {
+      console.log("🚀 Buscando detalles en la API de Mercado Pago...");
       
-      // 1. CONSULTAR EL PAGO REAL A MERCADO PAGO
-      // Usamos el ID que nos mandó el webhook para traer los detalles
       const response = await axios.get(`https://api.mercadopago.com/v1/payments/${id}`, {
-        headers: {
-          Authorization: `Bearer ${process.env.MERCADOPAGO_API_KEY}`,
-        },
+        headers: { Authorization: `Bearer ${process.env.MERCADOPAGO_API_KEY}` },
       });
 
       const paymentData = response.data;
+      console.log("📄 Estado del pago:", paymentData.status);
+      console.log("🔗 External Reference:", paymentData.external_reference);
 
-      // 2. EXTRAER EL DNI
-      // Recordá que en create-qr pusimos: external_reference: `${userId}|${Date.now()}`
-      const externalReference = paymentData.external_reference || "";
-      const userId = externalReference.split('|')[0]; // Esto saca el DNI (ej: 12345678)
+      const userId = paymentData.external_reference?.split('|')[0];
       
-      const amount = paymentData.transaction_amount;
-      const kwhAcreditados = amount / 10; // Tu regla de negocio
-
-      if (userId) {
-        // 3. DISPARAR PUSHER AL CANAL CORRECTO
+      if (userId && paymentData.status === 'approved') {
+        console.log(`📡 Intentando gritar a Pusher canal: user-${userId}`);
+        
         await pusher.trigger(`user-${userId}`, 'payment-success', {
-          amount: kwhAcreditados,
+          amount: paymentData.transaction_amount / 10,
         });
 
-        console.log(`✅ Pago procesado. Usuario: ${userId}, kWh: ${kwhAcreditados}`);
-        return NextResponse.json({ status: 'ok' }, { status: 200 });
+        console.log("✅ Pusher enviado con éxito.");
+        return NextResponse.json({ status: 'ok' });
+      } else {
+        console.log("⚠️ El pago no está aprobado o no tiene userId.");
       }
     }
 
-    return NextResponse.json({ message: "Evento ignorado" }, { status: 200 });
+    return NextResponse.json({ message: "Evento no procesable" });
   } catch (error: any) {
-    console.error("❌ Error en Webhook:", error.response?.data || error.message);
-    return NextResponse.json({ error: "Error interno" }, { status: 500 });
+    console.error("❌ ERROR FATAL EN WEBHOOK:", error.response?.data || error.message);
+    return NextResponse.json({ error: "Fail" }, { status: 500 });
   }
 }
