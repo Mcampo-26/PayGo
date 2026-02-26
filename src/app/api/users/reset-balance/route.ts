@@ -11,11 +11,12 @@ export async function POST(req: Request) {
     await dbConnect();
 
     // Ponemos el balance en 0 en la base de datos
-    const updatedUser = await User.findOneAndUpdate(
-      { dni: dni },
-      { $set: { balance: 0 } },
-      { new: true }
-    );
+   // Ponemos el balance en 0 en la base de datos
+   const updatedUser = await User.findOneAndUpdate(
+    { dni: dni },
+    { $set: { balance: 0 } },
+    { returnDocument: 'after' } // 👈 Cambio realizado aquí
+  );
 
     return NextResponse.json({ message: "Balance reseteado", balance: 0 });
   } catch (error: any) {
