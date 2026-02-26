@@ -1,25 +1,34 @@
+// src/app/api/payments/create-qr/route.ts
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 
 export async function POST(req: Request) {
-  console.log("--- 🆕 INICIANDO GENERACIÓN DE QR EN PRODUCCIÓN ---");
+  console.log("--- 🆕 INICIANDO GENERACIÓN DE QR (PRODUCCIÓN) ---");
   
   try {
     const body = await req.json();
     const { amount, userId } = body;
 
-    console.log(`📦 Datos recibidos: DNI: ${userId}, Monto: ${amount}`);
+    // Log para verificar que el frontend manda datos correctos
+    console.log(`📦 Datos recibidos: UserID: ${userId}, Monto: ${amount}`);
 
-    // Definimos la URL de notificación. 
-    // Prioriza la variable de entorno de Vercel, si no existe usa la fija.
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://pay-go-one.vercel.app';
-    const notificationUrl = `${baseUrl}/api/payments/mercadopago/webhook`;
+    // En producción usamos la URL de Vercel. 
+    // Asegúrate de que esta variable sea https://pay-go-one.vercel.app en tu panel de Vercel
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+    
+    console.log(`🌐 Usando BASE_URL: ${baseUrl}`);
+
+    if (!baseUrl) {
+      console.error("⚠️ ALERTA: NEXT_PUBLIC_BASE_URL no está definida. Mercado Pago no sabrá a dónde avisar.");
+    }
 
     const orderData = {
+      // Usamos el userId y el tiempo para que la referencia sea única
       external_reference: `${userId}|${Date.now()}`, 
       title: "Recarga de Energía Pay Go",
-      description: `Carga de crédito para usuario DNI: ${userId}`,
-      notification_url: notificationUrl,
+      description: `Carga de crédito para usuario: ${userId}`,
+      // IMPORTANTE: Esta es la URL que Mercado Pago llamará cuando el usuario pague
+      notification_url: `${baseUrl}/api/payments/mercadopago/webhook`,
       total_amount: amount,
       items: [
         {
@@ -33,12 +42,7 @@ export async function POST(req: Request) {
       cash_out: { amount: 0 },
     };
 
-    console.log("📨 Enviando a MP con URL de notificación:", notificationUrl);
-
-    // Validación de credenciales antes de disparar
-    if (!process.env.COLLECTOR_ID || !process.env.EXTERNAL_POS_ID || !process.env.MERCADOPAGO_API_KEY) {
-      throw new Error("Faltan credenciales de Mercado Pago en las variables de entorno");
-    }
+    console.log("📨 Enviando orden a Mercado Pago con URL de notificación:", orderData.notification_url);
 
     const response = await axios.put(
       `https://api.mercadopago.com/instore/orders/qr/seller/collectors/${process.env.COLLECTOR_ID}/pos/${process.env.EXTERNAL_POS_ID}/qrs`,
@@ -51,7 +55,7 @@ export async function POST(req: Request) {
       }
     );
 
-    console.log("✅ QR Generado con éxito para producción");
+    console.log("✅ MP Respondió con éxito. ID de orden:", response.data.in_store_order_id);
 
     return NextResponse.json({
       qr_data: response.data.qr_data,
@@ -67,6 +71,6 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   } finally {
-    console.log("--- 🏁 FIN DE PROCESO ---");
+    console.log("--- 🏁 FIN DE PROCESO CREATE-QR ---");
   }
 }
