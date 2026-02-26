@@ -3,24 +3,27 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
-  // 1. Buscamos si existe la "sesión" (un cookie llamado 'user_session')
   const session = request.cookies.get('user_session')
+  const { pathname } = request.nextUrl;
 
-  // 2. Si el usuario intenta entrar al Dashboard y NO tiene sesión...
-  if (!session && request.nextUrl.pathname === '/') {
-    // ...lo mandamos al Login
+  // 1. SI ES UNA RUTA DE API, NO HACER NADA (Dejar pasar siempre)
+  if (pathname.startsWith('/api')) {
+    return NextResponse.next();
+  }
+
+  // 2. Protecciones normales para el Dashboard (/)
+  if (!session && pathname === '/') {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // 3. Si ya tiene sesión e intenta ir al Login, lo mandamos al Dashboard
-  if (session && request.nextUrl.pathname === '/login') {
+  if (session && pathname === '/login') {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
   return NextResponse.next()
 }
 
-// Configuramos en qué rutas actúa el middleware
+// 3. Ajustar el matcher para que incluya todo menos archivos estáticos
 export const config = {
-  matcher: ['/', '/login'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 }

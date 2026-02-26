@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import Pusher from 'pusher';
 import axios from 'axios';
+import dbConnect from '@/lib/mongodb';
+import User from '@/models/User';
 
 export async function POST(req: Request) {
-  // 1. Inicializamos Pusher ADENTRO para asegurar que lea las variables de Vercel
   const pusher = new Pusher({
     appId: String(process.env.PUSHER_APP_ID).trim(),
     key: String(process.env.PUSHER_KEY).trim(),
@@ -12,59 +13,80 @@ export async function POST(req: Request) {
     useTLS: true,
   });
 
-  console.log("--- 📥 NUEVA NOTIFICACIÓN DE MP RECIBIDA ---");
-
   try {
+    // 1. Obtener ID y Tipo (desde URL o Body)
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get('data.id') || searchParams.get('id');
-    const type = searchParams.get('type') || searchParams.get('topic');
+    const body = await req.json().catch(() => ({}));
+    
+    const id = searchParams.get('data.id') || searchParams.get('id') || body?.data?.id;
+    const type = searchParams.get('type') || searchParams.get('topic') || body?.type;
 
-    console.log(`🔍 Metadata -> ID: ${id}, Type: ${type}`);
+    console.log(`🔔 Webhook recibido: ID ${id}, Tipo ${type}`);
 
-    if (id && (type === 'payment' || !type || type === 'merchant_order')) {
-      console.log("🚀 Buscando detalles en la API de Mercado Pago...");
+    // Solo procesamos si es un evento de pago
+    if (id && (type === 'payment' || type === 'payment.created' || type === 'payment.updated')) {
       
+      // 2. Consultar el estado real del pago en la API de Mercado Pago
       const response = await axios.get(`https://api.mercadopago.com/v1/payments/${id}`, {
         headers: { Authorization: `Bearer ${process.env.MERCADOPAGO_API_KEY}` },
       });
 
       const paymentData = response.data;
-      console.log("📄 Estado del pago:", paymentData.status);
 
-      const externalReference = paymentData.external_reference || "";
-      const userId = externalReference.split('|')[0];
-
-      if (userId && paymentData.status === 'approved') {
-        const amountToDeliver = Number(paymentData.transaction_amount) / 10;
+      // 3. Solo procesamos si el pago está aprobado
+      if (paymentData.status === 'approved') {
+        const dni = paymentData.external_reference; // DNI del usuario
+        const amountPaid = Number(paymentData.transaction_amount);
+        const paymentId = String(id);
         
-        console.log(`📡 Intentando Pusher: user-${userId} | kWh: ${amountToDeliver}`);
+        // 🔋 LÓGICA DE CONVERSIÓN: $1000 = 100 kWh
+        const kwhToAdd = amountPaid / 10; 
 
-        // 2. Disparamos el evento
-        await pusher.trigger(`user-${userId}`, 'payment-success', {
-          amount: amountToDeliver,
-        });
+        await dbConnect();
 
-        console.log("✅ Pusher enviado con éxito.");
-        return NextResponse.json({ status: 'ok' });
-      } else {
-        console.log(`ℹ️ Pago ${id} en estado: ${paymentData.status}. No se acredita aún.`);
-        return NextResponse.json({ status: 'pending', detail: paymentData.status });
+        /**
+         * 🛡️ CANDADO DE SEGURIDAD (IDEMPOTENCIA)
+         * Buscamos al usuario por DNI, pero SOLAMENTE si el paymentId no está en su lista de procesados.
+         * Si el ID ya existe, modifiedCount será 0 y no se cargará saldo dos veces.
+         */
+        const result = await User.updateOne(
+          { 
+            dni: String(dni),
+            processedPayments: { $ne: paymentId } // "Si este ID NO está en el array"
+          },
+          { 
+            $inc: { balance: kwhToAdd },
+            $push: { processedPayments: paymentId } // Guardamos el ID para quemarlo
+          }
+        );
+
+        if (result.modifiedCount > 0) {
+          // Si entramos acá, es la PRIMERA VEZ que procesamos este pago con éxito
+          const updatedUser = await User.findOne({ dni: String(dni) });
+          
+          console.log(`✅ PAGO ÚNICO PROCESADO: DNI ${dni} recibió ${kwhToAdd} kWh. ID: ${paymentId}`);
+
+          // 4. AVISAR AL FRONTEND VÍA PUSHER
+          await pusher.trigger(`user-${dni}`, 'payment-success', {
+            amount: kwhToAdd,
+            newTotal: updatedUser?.balance || 0
+          });
+
+          return NextResponse.json({ status: 'ok' });
+        } else {
+          // Si modifiedCount es 0, puede ser porque el DNI no existe o el pago ya se procesó
+          console.log(`⚠️ Aviso duplicado o usuario inexistente omitido. ID Pago: ${paymentId}`);
+          return NextResponse.json({ status: 'already_processed_or_not_found' });
+        }
       }
     }
 
-    return NextResponse.json({ message: "Evento recibido pero no es un pago final" });
+    // Si el pago no está aprobado aún (ej: pending), respondemos 200 para que MP no reintente con error
+    return NextResponse.json({ message: "Waiting for approval" }, { status: 200 });
 
   } catch (error: any) {
-    // Si Axios da 404, es que MP mandó un ID de orden que no es pago, lo ignoramos
-    if (error.response?.status === 404) {
-      console.log("ℹ️ Notificación de orden recibida (ignorando hasta que sea pago).");
-      return NextResponse.json({ message: "Merchant order ignored" });
-    }
-
-    // Capturamos el error 400 de Pusher o cualquier otro
-    const errorMsg = error.response?.data || error.message;
-    console.error("❌ ERROR FATAL EN WEBHOOK:", errorMsg);
-    
-    return NextResponse.json({ error: "Fail", details: errorMsg }, { status: 500 });
+    console.error("❌ ERROR CRÍTICO WEBHOOK:", error.response?.data || error.message);
+    // Respondemos 200 siempre para evitar que Mercado Pago se quede reintentando infinitamente
+    return NextResponse.json({ error: "Fail handled" }, { status: 200 });
   }
 }

@@ -1,52 +1,54 @@
-// src/app/api/payments/create-qr/route.ts
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 
 export async function POST(req: Request) {
-  console.log("--- 🆕 INICIANDO GENERACIÓN DE QR (PRODUCCIÓN) ---");
+  console.log("--- 💳 INICIANDO GENERACIÓN DE PAGO DÉBITO ---");
   
   try {
     const body = await req.json();
-    const { amount, userId } = body;
+    const { amount, dni } = body; // Usamos dni como userId
 
-    // Log para verificar que el frontend manda datos correctos
-    console.log(`📦 Datos recibidos: UserID: ${userId}, Monto: ${amount}`);
+    console.log(`📦 Datos recibidos: DNI: ${dni}, Monto: ${amount}`);
 
-    // En producción usamos la URL de Vercel. 
-    // Asegúrate de que esta variable sea https://pay-go-one.vercel.app en tu panel de Vercel
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+    // Usamos la URL de NGROK que tenés en el .env
+    const baseUrl = process.env.NGR || process.env.NEXT_PUBLIC_BASE_URL;
     
-    console.log(`🌐 Usando BASE_URL: ${baseUrl}`);
+    console.log(`🌐 Usando BASE_URL para Webhook: ${baseUrl}`);
 
-    if (!baseUrl) {
-      console.error("⚠️ ALERTA: NEXT_PUBLIC_BASE_URL no está definida. Mercado Pago no sabrá a dónde avisar.");
-    }
-
-    const orderData = {
-      // Usamos el userId y el tiempo para que la referencia sea única
-      external_reference: `${userId}|${Date.now()}`, 
-      title: "Recarga de Energía Pay Go",
-      description: `Carga de crédito para usuario: ${userId}`,
-      // IMPORTANTE: Esta es la URL que Mercado Pago llamará cuando el usuario pague
-      notification_url: `${process.env.NEXT_PUBLIC_BASE_URL}/api/payments/mercadopago/webhook`,
-      total_amount: amount,
+    // Configuración de la Preferencia (Checkout Pro)
+    const preferenceData = {
       items: [
         {
-          title: "Crédito de Energía",
-          unit_price: amount,
+          title: "Recarga de Energía Pay Go",
+          unit_price: Number(amount),
           quantity: 1,
-          unit_measure: "unit",
-          total_amount: amount,
+          currency_id: "ARS",
         },
       ],
-      cash_out: { amount: 0 },
+      payer: {
+        email: "test_user_654321@testuser.com", // Email de prueba
+        identification: {
+          type: "DNI",
+          number: dni.toString()
+        }
+      },
+      external_reference: dni.toString(),
+      // Aquí es donde Mercado Pago enviará el aviso
+      notification_url: `${baseUrl}/api/payments/mercadopago/webhook`,
+      back_urls: {
+        success: `${baseUrl}/dashboard`,
+        failure: `${baseUrl}/dashboard`,
+        pending: `${baseUrl}/dashboard`,
+      },
+      auto_return: "approved",
+      binary_mode: true, // Solo acepta pagos aprobados o rechazados (ideal para débito)
     };
 
-    console.log("📨 Enviando orden a Mercado Pago con URL de notificación:", orderData.notification_url);
+    console.log("📨 Enviando preferencia a Mercado Pago...");
 
-    const response = await axios.put(
-      `https://api.mercadopago.com/instore/orders/qr/seller/collectors/${process.env.COLLECTOR_ID}/pos/${process.env.EXTERNAL_POS_ID}/qrs`,
-      orderData,
+    const response = await axios.post(
+      'https://api.mercadopago.com/checkout/preferences',
+      preferenceData,
       {
         headers: {
           Authorization: `Bearer ${process.env.MERCADOPAGO_API_KEY}`,
@@ -55,22 +57,22 @@ export async function POST(req: Request) {
       }
     );
 
-    console.log("✅ MP Respondió con éxito. ID de orden:", response.data.in_store_order_id);
+    console.log("✅ MP Respondió con éxito. ID:", response.data.id);
 
+    // Retornamos el init_point para que el frontend abra la ventana de pago
     return NextResponse.json({
-      qr_data: response.data.qr_data,
-      order_id: response.data.in_store_order_id
+      init_point: response.data.init_point
     });
 
   } catch (error: any) {
     const errorDetail = error.response?.data || error.message;
-    console.error("❌ ERROR EN CREATE-QR:", JSON.stringify(errorDetail, null, 2));
+    console.error("❌ ERROR EN CREATE-DEBIT:", JSON.stringify(errorDetail, null, 2));
     
     return NextResponse.json(
-      { error: "Error al generar el QR", details: errorDetail },
+      { error: "Error al generar el pago", details: errorDetail },
       { status: 500 }
     );
   } finally {
-    console.log("--- 🏁 FIN DE PROCESO CREATE-QR ---");
+    console.log("--- 🏁 FIN DE PROCESO CREATE-DEBIT ---");
   }
 }

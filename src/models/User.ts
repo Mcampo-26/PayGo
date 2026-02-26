@@ -18,10 +18,15 @@ const UserSchema = new Schema({
   phone: { 
     type: String 
   },
-  // CAMBIO CLAVE: Agregamos el balance para poder sumar los kWh
   balance: {
     type: Number,
     default: 0
+  },
+  // 🛡️ SEGURIDAD: Array para guardar IDs de pagos ya acreditados
+  processedPayments: {
+    type: [String],
+    default: [],
+    index: true // Optimiza la búsqueda para cuando el array crezca
   },
   meters: [{ 
     type: Schema.Types.ObjectId, 

@@ -7,24 +7,26 @@ import { Footer } from '@/components/Footer';
 import { RechargeSelector } from '@/components/payments/RechargeSelector';
 import { QrModal } from '@/components/payments/QrModal';
 import { usePaymentStore } from '@/store/usePaymentStore';
-// 🚨 IMPORTANTE: Quitamos la importación de socket antiguo
+import { useDebitStore } from '@/store/useDebitStore';
 import { PaymentSuccessAlert } from '@/components/payments/PaymentSuccessAlert';
 import Swal from 'sweetalert2';
 import Pusher from 'pusher-js'; // 👈 Agregamos esto
+import { CardPagoDebito } from '@/components/payments/CardPagoDebito';
 
 export default function HomePage() {
   const [balance, setBalance] = useState<number>(1500);
-  const [user, setUser] = useState<string>(''); 
+  const [user, setUser] = useState<string>('');
   const router = useRouter();
-  
+
   const openSelector = usePaymentStore((state) => state.openSelector);
+  const openDebitSelector = useDebitStore((state) => state.openDebitSelector);
   const status = balance > 0 ? 'CONNECTED' : 'DISCONNECTED';
 
   // 1. Gestión de Sesión: Extraer DNI de la cookie
   useEffect(() => {
     const cookies = document.cookie.split('; ');
     const userCookie = cookies.find(row => row.startsWith('user_session='));
-    
+
     if (userCookie) {
       const userId = userCookie.split('=')[1];
       setUser(userId);
@@ -36,7 +38,7 @@ export default function HomePage() {
   // 2. CONEXIÓN A PUSHER (Reemplaza a Socket.io)
   useEffect(() => {
     if (!user) return;
-    
+
     // Configuramos el cliente de Pusher
     const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
       cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
@@ -118,9 +120,9 @@ export default function HomePage() {
     <main className="min-h-screen bg-[#F1F5F9] flex flex-col font-sans">
       {/* 🚨 El componente PaymentSuccessAlert ahora se encarga de escuchar el evento de pago */}
       {user && (
-        <PaymentSuccessAlert 
-          user={user} 
-          onBalanceUpdate={(amount) => setBalance(prev => prev + amount)} 
+        <PaymentSuccessAlert
+          user={user}
+          onBalanceUpdate={(amount) => setBalance(prev => prev + amount)}
         />
       )}
 
@@ -160,7 +162,7 @@ export default function HomePage() {
           <div className="lg:col-span-7 bg-white border-4 border-slate-900 rounded-[2.5rem] p-8 shadow-[10px_10px_0px_rgba(0,0,0,0.05)]">
             <h2 className="text-xl font-black mb-8 border-b-4 border-slate-100 pb-4 uppercase">Cargar Energía</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <button 
+              <button
                 onClick={openSelector}
                 className="flex flex-col p-8 rounded-3xl border-4 border-slate-100 hover:border-paygo-qr bg-slate-50 hover:bg-white transition-all group shadow-sm hover:shadow-xl text-left"
               >
@@ -169,23 +171,28 @@ export default function HomePage() {
                 <span className="mt-2 font-bold text-paygo-qr text-sm">Mercado Pago / Otros</span>
               </button>
 
-              <button className="flex flex-col p-8 rounded-3xl border-4 border-slate-100 bg-slate-50 transition-all group shadow-sm text-left cursor-not-allowed opacity-60">
-                <span className="text-5xl mb-4 grayscale">💳</span>
-                <span className="text-2xl font-black text-slate-900">Tarjeta</span>
-                <span className="mt-2 font-bold text-paygo-card text-sm">Próximamente</span>
-              </button>
+
+<button 
+  onClick={openDebitSelector} 
+  className="flex flex-col p-8 rounded-3xl border-4 border-slate-100 hover:border-blue-500 bg-slate-50 hover:bg-white transition-all group shadow-sm hover:shadow-xl text-left"
+>
+  <span className="text-5xl mb-4 group-hover:scale-110 transition-transform">💳</span>
+  <span className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Tarjeta Débito</span>
+  <span className="mt-2 font-bold text-blue-500 text-sm italic">Pago seguro</span>
+</button>
             </div>
           </div>
         </div>
-        
-        <button 
-  onClick={handleResetBalance} 
-  className="flex items-center gap-2 text-[10px] font-bold tracking-tighter bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white hover:border-red-600 px-4 py-2 rounded-full shadow-sm hover:shadow-md transition-all duration-300 active:scale-95"
->
-  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse group-hover:bg-white" />
-  FORZAR CORTE (0 kWh)
-</button>
+
+        <button
+          onClick={handleResetBalance}
+          className="flex items-center gap-2 text-[10px] font-bold tracking-tighter bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white hover:border-red-600 px-4 py-2 rounded-full shadow-sm hover:shadow-md transition-all duration-300 active:scale-95"
+        >
+          <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse group-hover:bg-white" />
+          FORZAR CORTE (0 kWh)
+        </button>
       </div>
+      <CardPagoDebito user={user} />
 
       <RechargeSelector user={{ dni: user, balance: balance }} />
       <QrModal />
