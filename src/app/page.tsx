@@ -179,11 +179,12 @@ export default function HomePage() {
         </div>
         
         <button 
-          onClick={handleResetBalance} 
-          className="text-[9px] font-black bg-red-100 text-red-600 hover:bg-red-600 hover:text-white px-3 py-1 rounded-lg transition-all"
-        >
-          FORZAR CORTE (0 kWh)
-        </button>
+  onClick={handleResetBalance} 
+  className="flex items-center gap-2 text-[10px] font-bold tracking-tighter bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white hover:border-red-600 px-4 py-2 rounded-full shadow-sm hover:shadow-md transition-all duration-300 active:scale-95"
+>
+  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse group-hover:bg-white" />
+  FORZAR CORTE (0 kWh)
+</button>
       </div>
 
       <RechargeSelector user={{ dni: user, balance: balance }} />
