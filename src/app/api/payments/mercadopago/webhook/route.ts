@@ -3,12 +3,12 @@ import Pusher from 'pusher';
 import axios from 'axios'; // 👈 No te olvides de importar axios
 
 const pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID!,
-  key: process.env.PUSHER_KEY!,
-  secret: process.env.PUSHER_SECRET!,
-  cluster: process.env.PUSHER_CLUSTER!,
+  appId: String(process.env.PUSHER_APP_ID).trim(),
+  key: String(process.env.PUSHER_KEY).trim(),
+  secret: String(process.env.PUSHER_SECRET).trim(),
+  cluster: String(process.env.PUSHER_CLUSTER).trim(),
   useTLS: true,
-});
+});;
 
 export async function POST(req: Request) {
   console.log("--- 📥 NUEVA NOTIFICACIÓN DE MP RECIBIDA ---");
