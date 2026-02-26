@@ -1,17 +1,18 @@
-// src/middleware.ts
+// src/proxy.ts
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-export function middleware(request: NextRequest) {
+// Cambiamos "export function middleware" por "export default function"
+export default function proxy(request: NextRequest) {
   const session = request.cookies.get('user_session')
   const { pathname } = request.nextUrl;
 
-  // 1. SI ES UNA RUTA DE API, NO HACER NADA (Dejar pasar siempre)
+  // 1. SI ES UNA RUTA DE API, NO HACER NADA
   if (pathname.startsWith('/api')) {
     return NextResponse.next();
   }
 
-  // 2. Protecciones normales para el Dashboard (/)
+  // 2. Protecciones normales
   if (!session && pathname === '/') {
     return NextResponse.redirect(new URL('/login', request.url))
   }
@@ -23,7 +24,6 @@ export function middleware(request: NextRequest) {
   return NextResponse.next()
 }
 
-// 3. Ajustar el matcher para que incluya todo menos archivos estáticos
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 }

@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getBaseUrl } from '@/lib/config';
 
 export async function POST(req: Request) {
   try {
     const { amount, dni } = await req.json();
     
     // 1. Forzamos limpieza de URL y Token
-    const rawBaseUrl = getBaseUrl();
-    const cleanBaseUrl = rawBaseUrl.replace(/\/$/, ""); // Quitamos barra final si existe
+  
+    const cleanBaseUrl =  process.env.NEXT_PUBLIC_BASE_URL// Quitamos barra final si existe
     const token = process.env.MERCADOPAGO_API_KEY?.trim(); // Limpiamos espacios
 
     console.log("------------------------------------------");

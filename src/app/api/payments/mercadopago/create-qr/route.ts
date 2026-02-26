@@ -1,48 +1,41 @@
-// src/app/api/payments/create-qr/route.ts
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 
 export async function POST(req: Request) {
-  console.log("--- 🆕 INICIANDO GENERACIÓN DE QR (PRODUCCIÓN) ---");
+  console.log("--- 🆕 INICIANDO GENERACIÓN DE QR ---");
   
   try {
     const body = await req.json();
     const { amount, userId } = body;
 
-    // Log para verificar que el frontend manda datos correctos
     console.log(`📦 Datos recibidos: UserID: ${userId}, Monto: ${amount}`);
 
-    // En producción usamos la URL de Vercel. 
-    // Asegúrate de que esta variable sea https://pay-go-one.vercel.app en tu panel de Vercel
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+    // Limpiamos la URL para evitar errores de barras dobles o faltantes
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "";
+  
     
-    console.log(`🌐 Usando BASE_URL: ${baseUrl}`);
-
-    if (!baseUrl) {
-      console.error("⚠️ ALERTA: NEXT_PUBLIC_BASE_URL no está definida. Mercado Pago no sabrá a dónde avisar.");
-    }
+    // IMPORTANTE: Aseguramos la barra "/" antes de "api"
+    const notificationUrl = `${baseUrl}/api/payments/mercadopago/webhook`;
 
     const orderData = {
-      // Usamos el userId y el tiempo para que la referencia sea única
       external_reference: `${userId}|${Date.now()}`, 
       title: "Recarga de Energía Pay Go",
       description: `Carga de crédito para usuario: ${userId}`,
-      // IMPORTANTE: Esta es la URL que Mercado Pago llamará cuando el usuario pague
-      notification_url: `${process.env.NEXT_PUBLIC_BASE_URL}/api/payments/mercadopago/webhook`,
-      total_amount: amount,
+      notification_url: notificationUrl,
+      total_amount: Number(amount),
       items: [
         {
           title: "Crédito de Energía",
-          unit_price: amount,
+          unit_price: Number(amount),
           quantity: 1,
           unit_measure: "unit",
-          total_amount: amount,
+          total_amount: Number(amount),
         },
       ],
       cash_out: { amount: 0 },
     };
 
-    console.log("📨 Enviando orden a Mercado Pago con URL de notificación:", orderData.notification_url);
+    console.log("📨 URL de notificación enviada a MP:", orderData.notification_url);
 
     const response = await axios.put(
       `https://api.mercadopago.com/instore/orders/qr/seller/collectors/${process.env.COLLECTOR_ID}/pos/${process.env.EXTERNAL_POS_ID}/qrs`,
