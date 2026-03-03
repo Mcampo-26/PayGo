@@ -11,10 +11,10 @@ const PRESET_AMOUNTS = [
 
 interface AmountSelectorProps {
   onConfirm: (amount: number) => void;
-  onClose: () => void;
+  onClose?: () => void;
 }
 
-export default function AmountSelector({ onConfirm, onClose }: AmountSelectorProps) {
+export default function AmountSelector({ onConfirm,onClose }: AmountSelectorProps) {
   const [selectedId, setSelectedId] = useState<string>('');
   const [customAmount, setCustomAmount] = useState<string>('');
 
@@ -37,7 +37,7 @@ export default function AmountSelector({ onConfirm, onClose }: AmountSelectorPro
       <h2 className="font-black text-2xl text-slate-800 tracking-tight text-center uppercase">Carga de Energía</h2>
       <p className="text-slate-400 text-sm font-bold mb-8 text-center uppercase tracking-widest">Selecciona el importe</p>
 
-      <div className="w-full space-y-4 mb-8">
+      <div className="w-full space-y-4 mb-8 text-left">
         {PRESET_AMOUNTS.map((item) => (
           <button
             key={item.id}
@@ -51,7 +51,7 @@ export default function AmountSelector({ onConfirm, onClose }: AmountSelectorPro
                 {item.badge}
               </span>
             )}
-            <div className="text-left">
+            <div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{item.label}</p>
               <p className="text-2xl font-black text-slate-800">${item.value.toLocaleString('es-AR')}</p>
             </div>
@@ -64,7 +64,7 @@ export default function AmountSelector({ onConfirm, onClose }: AmountSelectorPro
         <div className={`p-4 rounded-3xl border-4 transition-all flex items-center ${
           customAmount !== '' ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-100'
         }`}>
-          <div className="flex-1 text-left">
+          <div className="flex-1">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Otro monto personalizado</p>
             <div className="flex items-center">
               <span className="text-2xl font-black text-slate-800 mr-1">$</span>
@@ -82,7 +82,7 @@ export default function AmountSelector({ onConfirm, onClose }: AmountSelectorPro
 
       <button 
         onClick={handleNext}
-        className="w-full py-4 rounded-2xl bg-slate-900 text-white font-black text-lg hover:bg-slate-800 transition-colors uppercase tracking-widest"
+        className="w-full py-4 rounded-2xl bg-slate-900 text-white font-black text-lg hover:bg-slate-800 transition-colors uppercase tracking-widest shadow-lg"
       >
         Continuar al Pago
       </button>
