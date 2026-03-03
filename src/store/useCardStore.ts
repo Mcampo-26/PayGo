@@ -44,21 +44,25 @@ export const useCardStore = create<CardState>((set) => ({
   processCardPayment: async (paymentData) => {
     set({ isProcessing: true });
     try {
-      const res = await fetch('/api/payments/card', {
+      // ⬇️ CAMBIO CRUCIAL: Debe coincidir con tu carpeta en src/app/api/payments/mercadopago/process-card
+      const res = await fetch('/api/payments/mercadopago/process-card', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(paymentData),
       });
-
-      if (!res.ok) throw new Error('Error en el servidor');
-
+  
       const data = await res.json();
-      return data; // Retornamos la respuesta (status: 'approved', etc)
-    } catch (error) {
-      console.error("Error en processCardPayment:", error);
-      return { status: 'error' };
+  
+      if (!res.ok) {
+        // Si MP devuelve 400 (como el Invalid Token), lo capturamos aquí
+        throw new Error(data.details?.message || 'Error en el procesamiento');
+      }
+  
+      return data; 
+    } catch (error: any) {
+      console.error("❌ Error en processCardPayment:", error.message);
+      return { status: 'error', message: error.message };
     } finally {
-      // Finalizamos el estado de procesamiento al terminar la petición
       set({ isProcessing: false });
     }
   },
