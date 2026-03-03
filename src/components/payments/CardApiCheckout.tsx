@@ -8,14 +8,21 @@ import { PaymentLoader } from '@/components/payments/PaymentLoader';
 import Swal from 'sweetalert2';
 
 export default function CardApiCheckout({ userId }: { userId: string }) {
-  const { isCardModalOpen, closeCardModal, processCardPayment, isProcessing } = useCardStore();
+  // Extraemos todo de Zustand
+  const { 
+    isCardModalOpen, 
+    closeCardModal, 
+    processCardPayment, 
+    isProcessing, 
+    setProcessing 
+  } = useCardStore();
+
   const [sdkLoaded, setSdkLoaded] = useState(false);
   const [step, setStep] = useState<'amount' | 'payment'>('amount');
   const [finalAmount, setFinalAmount] = useState<number>(0);
-  
-  const [isShowingMpLoader, setIsShowingMpLoader] = useState(false);
   const [isReadyToReveal, setIsReadyToReveal] = useState(false);
 
+  // Inicializar SDK y resetear al cerrar
   useEffect(() => {
     if (isCardModalOpen && !sdkLoaded) {
       const key = process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY;
@@ -27,20 +34,21 @@ export default function CardApiCheckout({ userId }: { userId: string }) {
     
     if (!isCardModalOpen) {
       setStep('amount');
-      setIsShowingMpLoader(false);
+      setProcessing(false);
       setIsReadyToReveal(false);
     }
-  }, [isCardModalOpen, sdkLoaded]);
+  }, [isCardModalOpen, sdkLoaded, setProcessing]);
 
   const handleAmountConfirmed = (amount: number) => {
     setFinalAmount(amount);
-    setIsShowingMpLoader(true);
+    setProcessing(true); // Activamos el loader de Zustand
     setStep('payment');
   };
 
   const handleMpReady = () => {
+    // Cuando el formulario de MP está listo, quitamos el loader y mostramos el form
     setTimeout(() => {
-      setIsShowingMpLoader(false);
+      setProcessing(false);
       setTimeout(() => setIsReadyToReveal(true), 300);
     }, 1500); 
   };
@@ -49,18 +57,18 @@ export default function CardApiCheckout({ userId }: { userId: string }) {
 
   return (
     <>
-      {/* LOADER CON PRIORIDAD MÁXIMA */}
-      {(isProcessing || isShowingMpLoader) && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/20 backdrop-blur-sm">
-          <PaymentLoader mensaje={isProcessing ? "Validando transacción..." : "Preparando formulario..."} />
+      {/* ⚡ LOADER GLOBAL DE ZUSTAND (Cubre todo: z-[9999]) */}
+      {isProcessing && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+          <PaymentLoader mensaje={step === 'payment' && !isReadyToReveal ? "Preparando formulario..." : "Validando transacción..."} />
         </div>
       )}
 
       <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-        {/* Backdrop */}
+        {/* Backdrop con cierre */}
         <div 
           onClick={closeCardModal} 
-          className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" 
+          className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" 
         />
 
         <div className={`
@@ -73,19 +81,20 @@ export default function CardApiCheckout({ userId }: { userId: string }) {
           <button 
             onClick={closeCardModal} 
             className="absolute top-6 right-8 font-black text-2xl text-slate-300 hover:text-slate-900 z-[160]"
-          >
-            ✕
-          </button>
+          >✕</button>
 
-          <div className="p-0"> {/* P-0 para que AmountSelector use todo el espacio */}
-            {/* PASO 1: Selección de Monto (Sin títulos extras) */}
+          <div className="p-0">
+            {/* PASO 1: Montos (Sin padding para evitar el doble título) */}
             {step === 'amount' && (
               <div className="animate-in fade-in zoom-in-95 duration-300">
-                <AmountSelector onConfirm={handleAmountConfirmed} />
+            <AmountSelector 
+  onConfirm={handleAmountConfirmed} 
+  onClose={closeCardModal} 
+/>
               </div>
             )}
 
-            {/* PASO 2: Checkout de Tarjeta */}
+            {/* PASO 2: Tarjeta */}
             {step === 'payment' && (
               <div 
                 className="p-8 transition-all duration-700"
@@ -102,8 +111,8 @@ export default function CardApiCheckout({ userId }: { userId: string }) {
                   ← Volver a montos
                 </button>
                 
-                <div className="mb-6 bg-slate-50 p-4 rounded-2xl border-2 border-slate-100 text-center border-dashed">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Total a pagar</p>
+                <div className="mb-6 bg-slate-50 p-4 rounded-2xl border-2 border-slate-100 text-center">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Resumen de carga</p>
                   <h2 className="font-black text-3xl text-slate-900 mt-1">
                     ${finalAmount.toLocaleString('es-AR')}
                   </h2>
@@ -112,12 +121,10 @@ export default function CardApiCheckout({ userId }: { userId: string }) {
                 <div className="min-h-[450px]">
                   {sdkLoaded && (
                     <CardPayment
-                      initialization={{ 
-                        amount: finalAmount, 
-                        payer: { email: 'user@test.com' } 
-                      }}
+                      initialization={{ amount: finalAmount, payer: { email: 'user@test.com' } }}
                       onReady={handleMpReady}
                       onSubmit={async (param) => {
+                        // setProcessing(true) lo hace automáticamente el store en processCardPayment
                         const data = await processCardPayment({ 
                           ...param, 
                           userId, 
@@ -125,8 +132,7 @@ export default function CardApiCheckout({ userId }: { userId: string }) {
                         });
 
                         if (data.status === 'approved') {
-                          // CERRAMOS EL MODAL ANTES O DURANTE EL ÉXITO
-                          closeCardModal();
+                          closeCardModal(); // Cerramos antes del alert
                           
                           await Swal.fire({ 
                             icon: 'success', 
@@ -136,10 +142,10 @@ export default function CardApiCheckout({ userId }: { userId: string }) {
                             customClass: { popup: 'rounded-[2.5rem] border-4 border-slate-900' }
                           });
                         } else {
+                          // Si falla, el store ya puso setProcessing(false)
                           Swal.fire({ 
                             icon: 'error', 
                             title: 'PAGO RECHAZADO', 
-                            text: 'Intenta con otro medio de pago.',
                             confirmButtonColor: '#0F172A',
                             customClass: { popup: 'rounded-[2.5rem] border-4 border-slate-900' }
                           });
