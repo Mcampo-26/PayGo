@@ -46,11 +46,12 @@ export default function CardApiCheckout({ userId }: { userId: string }) {
   };
 
   const handleMpReady = () => {
-    // Cuando el formulario de MP está listo, quitamos el loader y mostramos el form
+    // Bajamos de 1500ms a 300ms para que sea casi instantáneo pero suave
     setTimeout(() => {
       setProcessing(false);
-      setTimeout(() => setIsReadyToReveal(true), 300);
-    }, 1500); 
+      // El reveal lo dejamos con un pequeño delay para que la animación de CSS (el blur) se vea bien
+      setTimeout(() => setIsReadyToReveal(true), 100); 
+    }, 300); 
   };
 
   if (!isCardModalOpen) return null;
