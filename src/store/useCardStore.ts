@@ -42,30 +42,29 @@ export const useCardStore = create<CardState>((set) => ({
    * PAGO INTERNO (API propia con SDK de MP)
    */
   processCardPayment: async (paymentData) => {
+    // 🔍 AGREGAMOS ESTE LOG:
+    console.log("🚀 STORE: Iniciando llamada al backend con datos:", paymentData);
+    
     set({ isProcessing: true });
     try {
-      // ⬇️ CAMBIO CRUCIAL: Debe coincidir con tu carpeta en src/app/api/payments/mercadopago/process-card
       const res = await fetch('/api/payments/mercadopago/process-card', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(paymentData),
       });
-  
+
+      // 🔍 AGREGAMOS ESTE LOG PARA VER LA RESPUESTA CRUDA:
+      console.log("📡 STORE: Status de la respuesta:", res.status);
+      
       const data = await res.json();
-  
-      if (!res.ok) {
-        // Si MP devuelve 400 (como el Invalid Token), lo capturamos aquí
-        throw new Error(data.details?.message || 'Error en el procesamiento');
-      }
-  
       return data; 
     } catch (error: any) {
-      console.error("❌ Error en processCardPayment:", error.message);
+      console.error("❌ STORE: Falló el fetch:", error.message);
       return { status: 'error', message: error.message };
     } finally {
       set({ isProcessing: false });
     }
-  },
+},
 
   /**
    * PAGO EXTERNO (Checkout Pro / Redirección)
