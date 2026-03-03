@@ -6,7 +6,8 @@ interface PaymentLoaderProps {
 
 export const PaymentLoader = ({ mensaje = "Procesando tu carga..." }: PaymentLoaderProps) => {
   return (
-    <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
+    /* SUBIMOS EL Z-INDEX A 9999 */
+    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-slate-900/80 backdrop-blur-xl animate-in fade-in duration-300">
       
       {/* Contenedor del Spinner */}
       <div className="relative flex items-center justify-center">
@@ -17,29 +18,30 @@ export const PaymentLoader = ({ mensaje = "Procesando tu carga..." }: PaymentLoa
         <div className="absolute w-16 h-16 border-4 border-white/5 border-b-emerald-400 rounded-full animate-[spin_1.5s_linear_infinite_reverse]" />
         
         {/* Icono central */}
-        <span className="absolute text-2xl animate-pulse">⚡</span>
+        <span className="absolute text-3xl animate-pulse">⚡</span>
       </div>
 
       {/* Texto de estado */}
-      <div className="mt-8 text-center">
-        <h3 className="text-white text-xl font-black uppercase tracking-widest animate-pulse">
-          PayGo
+      <div className="mt-8 text-center px-6">
+        <h3 className="text-white text-2xl font-black uppercase tracking-tighter animate-pulse italic">
+          Pay<span className="text-blue-500">Go</span>
         </h3>
-        <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.3em] mt-2">
+        {/* Usamos un min-h para que el layout no salte si el mensaje es corto */}
+        <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.4em] mt-3 max-w-[250px] leading-relaxed">
           {mensaje}
         </p>
       </div>
 
       {/* Barra de progreso decorativa */}
-      <div className="mt-6 w-48 h-1 bg-white/10 rounded-full overflow-hidden">
-        <div className="h-full bg-gradient-to-r from-blue-500 to-emerald-400 animate-[progress_2s_ease-in-out_infinite]" />
+      <div className="mt-8 w-48 h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/10">
+        <div className="h-full bg-gradient-to-r from-blue-500 via-emerald-400 to-blue-500 animate-[progress_2s_ease-in-out_infinite]" />
       </div>
 
       <style jsx>{`
         @keyframes progress {
-          0% { width: 0%; margin-left: 0%; }
-          50% { width: 50%; margin-left: 25%; }
-          100% { width: 0%; margin-left: 100%; }
+          0% { width: 0%; transform: translateX(-100%); }
+          50% { width: 70%; transform: translateX(20%); }
+          100% { width: 0%; transform: translateX(200%); }
         }
       `}</style>
     </div>
