@@ -1,43 +1,71 @@
 import { NextResponse } from 'next/server';
+import axios from 'axios';
 
 export async function POST(req: Request) {
-  try {
-    const { amount, userId } = await req.json();
+  console.log("--- 🆕 INICIANDO GENERACIÓN DE PREFERENCIA (CHECKOUT PRO) ---");
 
-    const mpResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.MERCADOPAGO_API_KEY}`,
+  try {
+    const body = await req.json();
+    const { amount, userId } = body;
+
+    console.log(`📦 Datos recibidos: UserID: ${userId}, Monto: ${amount}`);
+
+    // Mismo método de limpieza de URL que en tu archivo QR
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "";
+    const notificationUrl = `${baseUrl}/api/payments/mercadopago/webhook`;
+
+    const preferenceData = {
+      items: [
+        {
+          id: "energia-paygo",
+          title: "Recarga de Energía Pay Go",
+          description: `Carga de crédito para usuario: ${userId}`,
+          quantity: 1,
+          currency_id: "ARS", // O la moneda de tu país
+          unit_price: Number(amount),
+        }
+      ],
+      // Referencia externa idéntica para facilitar el tracking en el Webhook
+      external_reference: `${userId}|${Date.now()}`,
+      notification_url: notificationUrl,
+      back_urls: {
+        success: `${baseUrl}/dashboard?status=success`,
+        failure: `${baseUrl}/dashboard?status=failure`,
+        pending: `${baseUrl}/dashboard?status=pending`,
       },
-      body: JSON.stringify({
-        items: [
-          {
-            title: `Carga de Saldo PayGo - Usuario: ${userId}`,
-            unit_price: Number(amount),
-            quantity: 1,
-            currency_id: 'ARS',
-          }
-        ],
-        external_reference: userId.toString(),
-        back_urls: {
-          success: `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard`,
-          failure: `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard`,
-          pending: `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard`,
+      auto_return: "approved",
+      binary_mode: true, // No acepta pagos pendientes, solo aprobado o rechazado
+    };
+
+    console.log("📨 URL de notificación enviada a MP:", preferenceData.notification_url);
+
+    const response = await axios.post(
+      'https://api.mercadopago.com/checkout/preferences',
+      preferenceData,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.MERCADOPAGO_API_KEY}`,
+          "Content-Type": "application/json",
         },
-        auto_return: 'approved',
-        notification_url: `${process.env.NEXT_PUBLIC_BASE_URL}/api/payments/mercadopago/webhook`,
-      }),
+      }
+    );
+
+    console.log("✅ MP Generó Preferencia con éxito:", response.data.id);
+
+    return NextResponse.json({
+      id: response.data.id,
+      init_point: response.data.init_point // Esta es la URL a la que redirigimos al usuario
     });
 
-    const data = await mpResponse.json();
-
-    if (!mpResponse.ok) return NextResponse.json({ error: data.message }, { status: 400 });
-
-    // Devolvemos el init_point que es la URL a la que el usuario debe ir
-    return NextResponse.json({ init_point: data.init_point });
-
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const errorDetail = error.response?.data || error.message;
+    console.error("❌ ERROR EN CREATE-PREFERENCE:", JSON.stringify(errorDetail, null, 2));
+
+    return NextResponse.json(
+      { error: "Error al generar la preferencia", details: errorDetail },
+      { status: 500 }
+    );
+  } finally {
+    console.log("--- 🏁 FIN DE PROCESO CREATE-PREFERENCE ---");
   }
 }
